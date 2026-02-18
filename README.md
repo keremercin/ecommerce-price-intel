@@ -1,41 +1,87 @@
 # 🛒 ecommerce-price-intel
 
-Portfolio-grade e-commerce price intelligence pipeline.
+[![CI](https://github.com/keremercin/ecommerce-price-intel/actions/workflows/ci.yml/badge.svg)](https://github.com/keremercin/ecommerce-price-intel/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)
 
-## What it demonstrates
-- Web data collection (scraper-ready architecture)
-- ETL normalization pipeline
-- Latest price snapshot API
-- Price change alert detection
-- API + Streamlit dashboard surface
-- Alert-ready structure for automation jobs
+Price intelligence starter focused on practical e-commerce monitoring workflows.
 
-## Quickstart
-```bash
-cp .env.example .env
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-uvicorn price_intel.api.main:app --reload --port 8100
-streamlit run dashboard.py --server.port 8502
-```
+## Problem
+Teams need fast visibility into price movements, but manual tracking is slow and inconsistent.
 
-- API docs: <http://localhost:8100/docs>
-- Dashboard: <http://localhost:8502>
+## Solution
+This project provides:
+- normalized price-series ingestion flow,
+- latest snapshot endpoint,
+- threshold-based alert detection,
+- dashboard-ready outputs.
 
-## Endpoints
+---
+
+## Product view
+
+![Ecommerce Showcase](docs/assets/ecommerce_showcase.png)
+
+---
+
+## API
+
 - `GET /health`
 - `GET /v1/sample-data`
 - `GET /v1/latest`
 - `GET /v1/alerts?pct_threshold=5`
 
-## Why employers care
-This repo proves you can ship data workflows that combine collection, analytics logic, and operationally useful APIs/dashboard outputs.
+Swagger: `http://localhost:8100/docs`
 
-## Architecture
-See `docs/ARCHITECTURE.md`.
+---
 
-## Next milestone
-- Playwright-based real e-commerce collector
-- Daily scheduler + alert notifications
-- Historical trend dashboard cards
+## Quickstart
+
+```bash
+cp .env.example .env
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+
+uvicorn price_intel.api.main:app --reload --port 8100
+streamlit run dashboard.py --server.port 8502
+```
+
+---
+
+## What employers can see here
+
+- API + analytics logic shipped together
+- alerting-oriented data model design
+- practical dashboard surface for non-technical users
+- engineering hygiene (tests + CI)
+
+---
+
+## Repository structure
+
+```text
+src/price_intel/
+├─ api/
+├─ collectors/
+├─ pipeline/
+│  ├─ transform.py
+│  └─ analytics.py
+└─ config.py
+```
+
+---
+
+## Docs
+
+- Architecture: `docs/ARCHITECTURE.md`
+- Case study: `docs/CASE_STUDY.md`
+- 60s demo script: `docs/DEMO_SCRIPT_60S.md`
+
+---
+
+## Next roadmap
+
+- real Playwright-based collectors
+- scheduled daily ingestion
+- notification channel integration (Slack/Telegram/Email)
