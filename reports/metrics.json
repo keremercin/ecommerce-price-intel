@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "project": "ecommerce-price-intel",
+  "model_version": "0.5.0",
+  "metrics": {
+    "alert_scenarios": {
+      "spike_detection": true,
+      "drop_detection": true,
+      "noise_filtering": true
+    }
+  }
+}

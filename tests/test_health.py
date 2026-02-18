@@ -7,4 +7,7 @@ def test_health() -> None:
     client = TestClient(app)
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["error"] is None
+    assert "service" in body["data"]

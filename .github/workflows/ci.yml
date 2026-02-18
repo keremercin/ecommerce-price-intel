@@ -19,5 +19,5 @@ jobs:
           pip install -e .[dev]
       - name: Lint
         run: ruff check src tests
-      - name: Test
-        run: pytest
+      - name: Tests + coverage gate
+        run: pytest --cov=src --cov-report=term-missing --cov-fail-under=80
