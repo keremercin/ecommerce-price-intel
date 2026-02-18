@@ -22,6 +22,8 @@ This project provides:
 
 ![Ecommerce Showcase](docs/assets/ecommerce_showcase.png)
 
+![Product Showcase GIF](docs/assets/product_showcase.gif)
+
 ---
 
 ## API
