@@ -3,7 +3,13 @@ import json
 import httpx
 import pytest
 
-from price_intel.catalog import SOURCE, CatalogCrawler, CatalogStore, canonical_url, parse_catalog
+from price_intel.catalog import (
+    SOURCE,
+    CatalogCrawler,
+    CatalogStore,
+    canonical_url,
+    parse_catalog,
+)
 
 
 def page(name="Book", price="12.30", next_path=None):

@@ -6,8 +6,8 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from price_intel.collectors.sample_collector import collect_sample_products
 from price_intel.catalog import CatalogStore
+from price_intel.collectors.sample_collector import collect_sample_products
 from price_intel.config import settings
 from price_intel.pipeline.analytics import build_latest_snapshot, detect_alerts
 from price_intel.pipeline.transform import add_price_delta, normalize_prices

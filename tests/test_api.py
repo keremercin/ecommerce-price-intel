@@ -37,8 +37,9 @@ def test_stored_mode_never_silently_substitutes_sample_data(tmp_path, monkeypatc
 
 
 def test_stored_api_reads_real_observations(tmp_path, monkeypatch):
-    from price_intel.catalog import CatalogStore
     import json
+
+    from price_intel.catalog import CatalogStore
 
     path = tmp_path / "catalog.db"
     monkeypatch.setenv("PRICE_INTEL_DB_PATH", str(path))
