@@ -1,10 +1,13 @@
-from typing import Any
+import os
+from pathlib import Path
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from price_intel.collectors.sample_collector import collect_sample_products
+from price_intel.catalog import CatalogStore
 from price_intel.config import settings
 from price_intel.pipeline.analytics import build_latest_snapshot, detect_alerts
 from price_intel.pipeline.transform import add_price_delta, normalize_prices
@@ -41,8 +44,19 @@ async def http_exception_handler(_: Request, exc: HTTPException):
     )
 
 
-def _dataset():
-    rows = collect_sample_products()
+def _store():
+    return CatalogStore(Path(os.environ.get("PRICE_INTEL_DB_PATH", "data/catalog.db")))
+
+
+def _dataset(mode: str = "stored"):
+    if mode == "sample":
+        rows = collect_sample_products()
+    else:
+        store = _store()
+        try:
+            rows = store.rows()
+        finally:
+            store.close()
     df = normalize_prices(rows)
     return add_price_delta(df)
 
@@ -59,19 +73,37 @@ def version() -> dict:
 
 @app.get("/v1/sample-data")
 def sample_data() -> dict:
-    df = _dataset()
-    return api_response(data={"rows": df.fillna(0).to_dict(orient="records")})
+    df = _dataset("sample")
+    return api_response(data={"mode": "sample", "rows": df.fillna(0).to_dict(orient="records")})
 
 
 @app.get("/v1/latest")
-def latest_snapshot() -> dict:
-    df = _dataset()
+def latest_snapshot(mode: Literal["stored", "sample"] = "stored") -> dict:
+    df = _dataset(mode)
     latest = build_latest_snapshot(df)
-    return api_response(data={"rows": latest.fillna(0).to_dict(orient="records")})
+    return api_response(data={"mode": mode, "rows": latest.fillna(0).to_dict(orient="records")})
 
 
 @app.get("/v1/alerts")
-def alerts(pct_threshold: float = Query(default=5.0, ge=0.1, le=100.0)) -> dict:
-    df = _dataset()
+def alerts(pct_threshold: float = Query(default=5.0, ge=0.1, le=100.0), mode: Literal["stored", "sample"] = "stored") -> dict:
+    df = _dataset(mode)
     out = detect_alerts(df, pct_threshold=pct_threshold)
-    return api_response(data={"threshold": pct_threshold, "alerts": out, "count": len(out)})
+    return api_response(data={"mode": mode, "threshold": pct_threshold, "alerts": out, "count": len(out)})
+
+
+@app.get("/v1/catalog/history")
+def catalog_history() -> dict:
+    store = _store()
+    try:
+        return api_response(data={"mode": "stored", "rows": store.rows()})
+    finally:
+        store.close()
+
+
+@app.get("/v1/catalog/runs")
+def catalog_runs() -> dict:
+    store = _store()
+    try:
+        return api_response(data={"runs": store.runs()})
+    finally:
+        store.close()

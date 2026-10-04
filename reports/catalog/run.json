@@ -1,0 +1,10 @@
+{
+  "run_id": "34e92315-6e5c-46e6-bf6b-92a1cb0a5ec4",
+  "status": "partial",
+  "pages": 3,
+  "rows": 60,
+  "errors": [],
+  "network_requests": 4,
+  "cache_hits": 0,
+  "source_notice": "Live HTTP collection from Books to Scrape, a sandbox with synthetic prices; not commercial customer data."
+}

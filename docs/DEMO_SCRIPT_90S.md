@@ -1,17 +1,10 @@
-# 90-Second Demo Script
+# Current catalog demo
 
-## 0-20s: Problem framing
-"E-commerce teams need near-real-time visibility into price movement and threshold-based alerts."
+1. Install the project and run `python scripts/collect_catalog.py --pages 3`.
+2. Start the API on port 8100 and `streamlit run dashboard.py --server.port 8502`.
+3. Select stored mode. Show product names, prices and source URLs.
+4. Open Run quality: a three-page bounded run is partial, not a complete catalog scan.
+5. Explain that the HTTP extraction is real but Books to Scrape prices are synthetic.
+6. Switch to sample only to illustrate synthetic price movements. Do not imply observed market changes.
 
-## 20-60s: API + analytics flow
-- Open `/docs`
-- Call `/v1/latest` for current snapshot
-- Call `/v1/alerts?pct_threshold=5`
-- Show returned `count` and top alert records
-
-## 60-80s: Reliability signals
-- Show structured response envelope
-- Show alert logic tests for spike/drop/noise (`tests/test_alert_logic.py`)
-
-## 80-90s: Hiring close
-"This project demonstrates practical analytics APIs, alerting logic, and testable data behavior for production workflows."
+Evidence: the real screenshot is `output/playwright/catalog.png`; the recorded source-linked data are in `reports/catalog/`. This is a local engineering demonstration, not a production service/customer case study.
