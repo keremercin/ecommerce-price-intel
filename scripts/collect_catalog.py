@@ -5,11 +5,13 @@ from pathlib import Path
 
 from price_intel.catalog import CatalogCrawler, CatalogStore, export_rows
 
+DEFAULT_DATABASE = "data/catalog.db"
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pages", type=int, default=3)
-    parser.add_argument("--database", default="data/catalog.db")
+    parser.add_argument("--database", default=DEFAULT_DATABASE)
     parser.add_argument("--output", default="reports/catalog")
     parser.add_argument("--resume", help="Continue a partial or failed run ID")
     parser.add_argument("--refresh", action="store_true", help="Fetch new observations instead of cached HTML")

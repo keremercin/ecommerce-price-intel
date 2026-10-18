@@ -1,15 +1,12 @@
-# Case Study — Ecommerce Price Intel
+# Catalog Monitoring Demo — Ecommerce Price Intel
 
 ## Problem
-Marketplace sellers and operators need to track competitor price changes quickly, but manual tracking is slow and error-prone.
+This local demo stores source-linked observations collected from the Books to Scrape sandbox. Its displayed prices are synthetic.
 
 ## Solution
-A lightweight price intelligence pipeline with:
+The code includes a pipeline with:
 - normalized product price series,
 - alert detection for significant movements,
 - dashboard and API access for downstream automations.
 
-## Outcome
-- Fast snapshot of latest prices
-- configurable threshold-based alerts
-- clear baseline architecture to plug real scrapers and schedulers
+This is not a client case study. No customer use, commercial price movement, revenue impact, or operational savings are measured here.

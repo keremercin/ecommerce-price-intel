@@ -2,7 +2,6 @@ import json
 
 import httpx
 import pytest
-
 from price_intel.catalog import (
     SOURCE,
     CatalogCrawler,
@@ -13,7 +12,10 @@ from price_intel.catalog import (
 
 
 def page(name="Book", price="12.30", next_path=None):
-    body = f'<article class="product_pod"><h3><a href="catalogue/book/index.html" title="{name}">book</a></h3><p class="price_color">£{price}</p></article>'
+    body = (
+        f'<article class="product_pod"><h3><a href="catalogue/book/index.html" '
+        f'title="{name}">book</a></h3><p class="price_color">£{price}</p></article>'
+    )
     if next_path:
         body += f'<li class="next"><a href="{next_path}">next</a></li>'
     return body
@@ -34,8 +36,20 @@ def test_parse_deduplicates_and_records_bad_cards():
 
 
 def test_jsonld_graph_and_offsite_pagination():
-    product = {"@graph": [{"@type": "Product", "name": "  Nice   Book ", "url": "/book", "offers": {"price": "7.25", "priceCurrency": "GBP"}}]}
-    html = f'<script type="application/ld+json">{json.dumps(product)}</script><a rel="next" href="https://evil.test/">next</a>'
+    product = {
+        "@graph": [
+            {
+                "@type": "Product",
+                "name": "  Nice   Book ",
+                "url": "/book",
+                "offers": {"price": "7.25", "priceCurrency": "GBP"},
+            }
+        ]
+    }
+    html = (
+        f'<script type="application/ld+json">{json.dumps(product)}</script>'
+        '<a rel="next" href="https://evil.test/">next</a>'
+    )
     rows, nxt, errors = parse_catalog(html, SOURCE + "/")
     assert rows[0]["product_name"] == "Nice Book"
     assert nxt is None
@@ -52,7 +66,11 @@ def test_resume_and_cached_replay(tmp_path):
     def handler(request):
         if request.url.path == "/robots.txt":
             return httpx.Response(200, text="User-agent: *\nAllow: /")
-        return httpx.Response(200, text=page(next_path="/page2") if request.url.path == "/" else page("Second").replace("catalogue/book", "catalogue/second"))
+        if request.url.path == "/":
+            return httpx.Response(200, text=page(next_path="/page2"))
+        return httpx.Response(
+            200, text=page("Second").replace("catalogue/book", "catalogue/second")
+        )
     store, c = crawler(tmp_path, handler)
     first = c.crawl(max_pages=1)
     assert first["status"] == "partial"
@@ -89,7 +107,11 @@ def test_failed_page_retains_cursor_for_resume(tmp_path):
             return httpx.Response(404)
         if request.url.path == "/page2" and broken:
             return httpx.Response(200, text="layout changed")
-        return httpx.Response(200, text=page(next_path="/page2") if request.url.path == "/" else page().replace("catalogue/book", "catalogue/second"))
+        if request.url.path == "/":
+            return httpx.Response(200, text=page(next_path="/page2"))
+        return httpx.Response(
+            200, text=page().replace("catalogue/book", "catalogue/second")
+        )
     store, c = crawler(tmp_path, handler)
     with pytest.raises(ValueError, match="No valid products"):
         c.crawl(max_pages=2)
@@ -105,7 +127,10 @@ def test_duplicate_products_do_not_erase_visited_pages(tmp_path):
     def handler(request):
         if request.url.path == '/robots.txt':
             return httpx.Response(404)
-        return httpx.Response(200, text=page(next_path='/page2' if request.url.path == '/' else '/'))
+        return httpx.Response(
+            200,
+            text=page(next_path="/page2" if request.url.path == "/" else "/"),
+        )
     store, c = crawler(tmp_path, handler)
     first = c.crawl(max_pages=2)
     assert first['rows'] == 1
@@ -116,7 +141,14 @@ def test_duplicate_products_do_not_erase_visited_pages(tmp_path):
 
 
 def test_offsite_next_page_cannot_report_success(tmp_path):
-    store, c = crawler(tmp_path, lambda request: httpx.Response(404) if request.url.path == '/robots.txt' else httpx.Response(200, text=page(next_path='https://evil.test/')))
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(
+            200, text=page(next_path="https://evil.test/")
+        )
+
+    store, c = crawler(tmp_path, handler)
     with pytest.raises(ValueError, match='pagination is incomplete'):
         c.crawl()
     assert store.runs()[0]['status'] == 'failed'
@@ -124,8 +156,16 @@ def test_offsite_next_page_cannot_report_success(tmp_path):
 
 
 def test_jsonld_missing_identity_is_not_collapsed_into_page_product():
-    items = [{'@type': None}, {'@type': 'Product', 'name': 'A', 'offers': {'price': '1', 'priceCurrency': 'GBP'}}]
-    rows, _, errors = parse_catalog('<script type="application/ld+json">' + json.dumps(items) + '</script>', SOURCE + '/')
+    items = [
+        {"@type": None},
+        {
+            "@type": "Product",
+            "name": "A",
+            "offers": {"price": "1", "priceCurrency": "GBP"},
+        },
+    ]
+    html = '<script type="application/ld+json">' + json.dumps(items) + "</script>"
+    rows, _, errors = parse_catalog(html, SOURCE + "/")
     assert rows == []
     assert errors == ['Invalid JSON-LD product/offer']
 

@@ -18,6 +18,7 @@ A Python catalog ingestion pipeline with durable crawl progress, historical snap
 - Commits each page's observations, visited-page record and continuation cursor together in SQLite.
 - Resumes interrupted runs without silently claiming incomplete pagination is complete.
 - Exports CSV/JSON and exposes stored data, alerts and run diagnostics through an API.
+- Compares price history only within the same currency; a zero previous price is skipped because a percentage change is undefined.
 
 ## Run locally
 
@@ -29,18 +30,18 @@ python -m venv .venv
 # PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 python scripts/collect_catalog.py --pages 3
-python -m uvicorn price_intel.api.main:app --port 8100
+python -m uvicorn price_intel.api.main:app --host 127.0.0.1 --port 8100
 ```
 
 In a second terminal with the same environment:
 
 ```bash
-python -m streamlit run dashboard.py --server.port 8502
+python -m streamlit run dashboard.py --server.address 127.0.0.1 --server.port 8502
 ```
 
 Open http://localhost:8502. The default dataset is **stored observations**, not sample data. Before collection it is empty. The dashboard offers an explicitly labelled synthetic sample mode.
 
-The default database is `data/catalog.db`; set `PRICE_INTEL_DB_PATH` to use another database for the API. The collector accepts `--database`, `--output`, `--resume RUN_ID` and `--refresh`. Resume the ID printed by collection to continue the next bounded batch. Each invocation accepts 1–50 pages. Refresh bypasses cached responses, including cached pages whose layout could not be parsed.
+The API reads the file-backed SQLite URL in `DB_URL`, defaulting to `sqlite:///./data/catalog.db` to match the collector's `--database` default. Set `DB_URL=sqlite:///./path/to/catalog.db` to choose another file; when collecting, pass the same file to `--database`. `PRICE_INTEL_DB_PATH` is not used. The collector also accepts `--output`, `--resume RUN_ID` and `--refresh`. Resume the ID printed by collection to continue the next bounded batch. Each invocation accepts 1–50 pages. Refresh bypasses cached responses, including cached pages whose layout could not be parsed.
 
 ## Architecture
 
@@ -66,7 +67,9 @@ The collector is a local CLI/library. The API does not accept arbitrary URLs or 
 - `GET /v1/catalog/runs`
 - `GET /v1/sample-data` — deliberately synthetic
 
-Responses use `{status, data, meta, error}`. The dashboard unwraps `data`. `latest` and `alerts` accept `mode=sample` explicitly; their default now reads SQLite rather than the old hard-coded sample dataset.
+Responses use `{status, data, meta, error}` with `app_version` and `latency_ms: null` (request duration is not measured). `app_version` identifies the API application; package metadata is maintained separately in `pyproject.toml`. No model version applies to this API. The dashboard unwraps `data`. `latest` and `alerts` accept `mode=sample` explicitly; their default reads the configured SQLite database.
+
+The API has no authentication. Keep both the API and dashboard on loopback for local inspection; do not expose their ports directly to a network or deploy them publicly without adding authentication, TLS, and a reviewed access boundary.
 
 ## Recorded example
 
@@ -79,7 +82,7 @@ python -m pytest -q
 python -m ruff check src/price_intel/catalog.py scripts/collect_catalog.py tests/test_catalog.py tests/test_api.py src/price_intel/api/main.py dashboard.py
 ```
 
-Current local result: **20 tests passed**. Tests cover extraction, malformed records, JSON-LD identity, URL restrictions, retry/robots behavior, cache replay, failure/resume, pagination loops, rejected pagination and stored API behavior. HTTP failure scenarios use MockTransport; they do not establish live site reliability. The dashboard was also opened in Chromium against the running local API: the stored mode displayed 60 products, one partial run and source-linked records; the Run quality tab rendered. This is local smoke verification, not hosted deployment verification.
+Current checkout suite: **25 tests passed**. Tests cover extraction, malformed records, JSON-LD identity, URL restrictions, retry/robots behavior, cache replay, failure/resume, pagination loops, rejected pagination, currency-aware comparison, zero-price handling and configured database selection. HTTP failure scenarios use MockTransport; no live collection or browser deployment check was run in this fix pass.
 
 ## Limits
 

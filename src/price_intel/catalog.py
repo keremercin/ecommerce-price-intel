@@ -48,7 +48,13 @@ def product_row(name: str, price: str, currency: str, url: str) -> dict:
         amount = Decimal(str(price).strip())
     except InvalidOperation as exc:
         raise ValueError("Invalid product price") from exc
-    if not name or not amount.is_finite() or amount < 0 or len(currency) != 3 or not currency.isalpha():
+    if (
+        not name
+        or not amount.is_finite()
+        or amount < 0
+        or len(currency) != 3
+        or not currency.isalpha()
+    ):
         raise ValueError("Invalid product fields")
     return {
         "source": urlsplit(url).hostname,
@@ -60,7 +66,9 @@ def product_row(name: str, price: str, currency: str, url: str) -> dict:
     }
 
 
-def parse_catalog(html: str, page_url: str, origin: str = SOURCE) -> tuple[list[dict], str | None, list[str]]:
+def parse_catalog(
+    html: str, page_url: str, origin: str = SOURCE
+) -> tuple[list[dict], str | None, list[str]]:
     soup = BeautifulSoup(html, "html.parser")
     rows: dict[str, dict] = {}
     errors: list[str] = []
@@ -104,7 +112,9 @@ def parse_catalog(html: str, page_url: str, origin: str = SOURCE) -> tuple[list[
             link = card.select_one("h3 a")
             price = card.select_one(".price_color").get_text(strip=True)
             url = canonical_url(page_url, link["href"], origin)
-            row = product_row(link.get("title") or link.get_text(), price.removeprefix("£"), "GBP", url)
+            row = product_row(
+                link.get("title") or link.get_text(), price.removeprefix("£"), "GBP", url
+            )
             rows[row["product_id"]] = row
         except (KeyError, TypeError, AttributeError, ValueError):
             errors.append("Invalid HTML product card")
@@ -128,7 +138,8 @@ class CatalogStore:
             CREATE TABLE IF NOT EXISTS runs (
               id TEXT PRIMARY KEY, started_at TEXT NOT NULL, status TEXT NOT NULL,
               cursor TEXT, pages INTEGER NOT NULL DEFAULT 0, errors TEXT NOT NULL DEFAULT '[]');
-            CREATE TABLE IF NOT EXISTS cache (url TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS cache (
+              url TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS snapshots (
               run_id TEXT NOT NULL, product_id TEXT NOT NULL, page_url TEXT NOT NULL,
               captured_at TEXT NOT NULL, payload TEXT NOT NULL,
@@ -145,9 +156,14 @@ class CatalogStore:
 
     def rows(self, run_id: str | None = None) -> list[dict]:
         if run_id:
-            records = self.db.execute("SELECT payload,captured_at FROM snapshots WHERE run_id=? ORDER BY product_id", (run_id,))
+            records = self.db.execute(
+                "SELECT payload,captured_at FROM snapshots WHERE run_id=? ORDER BY product_id",
+                (run_id,),
+            )
         else:
-            records = self.db.execute("SELECT payload,captured_at FROM snapshots ORDER BY captured_at,product_id")
+            records = self.db.execute(
+                "SELECT payload,captured_at FROM snapshots ORDER BY captured_at,product_id"
+            )
         return [{**json.loads(r["payload"]), "captured_at": r["captured_at"]} for r in records]
 
     def runs(self) -> list[dict]:
@@ -155,10 +171,21 @@ class CatalogStore:
 
 
 class CatalogCrawler:
-    def __init__(self, store: CatalogStore, origin: str = SOURCE, *, client=None,
-                 delay: float = 0.5, cache_ttl: float = 3600, sleep=time.sleep, renderer=None):
+    def __init__(
+        self,
+        store: CatalogStore,
+        origin: str = SOURCE,
+        *,
+        client=None,
+        delay: float = 0.5,
+        cache_ttl: float = 3600,
+        sleep=time.sleep,
+        renderer=None,
+    ):
         self.store, self.origin = store, origin.rstrip("/")
-        self.client = client or httpx.Client(timeout=20, follow_redirects=False, headers={"User-Agent": USER_AGENT})
+        self.client = client or httpx.Client(
+            timeout=20, follow_redirects=False, headers={"User-Agent": USER_AGENT}
+        )
         self.owns_client = client is None
         self.delay, self.cache_ttl, self.sleep = delay, cache_ttl, sleep
         self.renderer = renderer
@@ -171,7 +198,9 @@ class CatalogCrawler:
 
     def fetch(self, url: str) -> str:
         canonical_url(self.origin, url, self.origin)
-        cached = self.store.db.execute("SELECT body,fetched_at FROM cache WHERE url=?", (url,)).fetchone()
+        cached = self.store.db.execute(
+            "SELECT body,fetched_at FROM cache WHERE url=?", (url,)
+        ).fetchone()
         if cached and time.time() - cached["fetched_at"] < self.cache_ttl:
             self.cache_hits += 1
             return cached["body"]
@@ -196,7 +225,9 @@ class CatalogCrawler:
                     # Bound decoded response bytes, including compressed responses.
                     body = content.decode("utf-8", errors="replace")
                 with self.store.db:
-                    self.store.db.execute("INSERT OR REPLACE INTO cache VALUES (?,?,?)", (url, body, time.time()))
+                    self.store.db.execute(
+                        "INSERT OR REPLACE INTO cache VALUES (?,?,?)", (url, body, time.time())
+                    )
                 return body
             except httpx.TransportError:
                 if attempt == 2:
@@ -215,7 +246,9 @@ class CatalogCrawler:
                 raise
         return parser
 
-    def crawl(self, start_url: str = SOURCE + "/", max_pages: int = 3, run_id: str | None = None) -> dict:
+    def crawl(
+        self, start_url: str = SOURCE + "/", max_pages: int = 3, run_id: str | None = None
+    ) -> dict:
         if not 1 <= max_pages <= 50:
             raise ValueError("max_pages must be between 1 and 50")
         start_url = canonical_url(self.origin, start_url, self.origin)
@@ -224,14 +257,27 @@ class CatalogCrawler:
             if not state:
                 raise ValueError("Unknown run ID")
             if state["status"] == "completed":
-                return {"run_id": run_id, "status": "completed", "rows": len(self.store.rows(run_id)), "pages": state["pages"]}
+                return {
+                    "run_id": run_id,
+                    "status": "completed",
+                    "rows": len(self.store.rows(run_id)),
+                    "pages": state["pages"],
+                }
             cursor, pages, errors = state["cursor"], state["pages"], json.loads(state["errors"])
         else:
             run_id = str(uuid4())
             cursor, pages, errors = start_url, 0, []
             with self.store.db:
-                self.store.db.execute("INSERT INTO runs(id,started_at,status,cursor) VALUES (?,?,?,?)", (run_id, utc_now(), "running", cursor))
-        visited = {r[0] for r in self.store.db.execute("SELECT url FROM visited_pages WHERE run_id=?", (run_id,))}
+                self.store.db.execute(
+                    "INSERT INTO runs(id,started_at,status,cursor) VALUES (?,?,?,?)",
+                    (run_id, utc_now(), "running", cursor),
+                )
+        visited = {
+            r[0]
+            for r in self.store.db.execute(
+                "SELECT url FROM visited_pages WHERE run_id=?", (run_id,)
+            )
+        }
         try:
             policy = self.robot_policy()
             for _ in range(max_pages):
@@ -242,9 +288,13 @@ class CatalogCrawler:
                     raise ValueError("Pagination loop detected")
                 if not policy.can_fetch(USER_AGENT, cursor):
                     raise ValueError("robots.txt disallows this page")
-                rows, next_url, parse_errors = parse_catalog(self.fetch(cursor), cursor, self.origin)
+                rows, next_url, parse_errors = parse_catalog(
+                    self.fetch(cursor), cursor, self.origin
+                )
                 if not rows and self.renderer:
-                    rows, next_url, parse_errors = parse_catalog(self.renderer(cursor), cursor, self.origin)
+                    rows, next_url, parse_errors = parse_catalog(
+                        self.renderer(cursor), cursor, self.origin
+                    )
                 if not rows:
                     raise ValueError("No valid products: parser/source mismatch")
                 if "Rejected next-page URL" in parse_errors:
@@ -254,28 +304,64 @@ class CatalogCrawler:
                 # Page records and continuation cursor commit together. A retry
                 # after interruption never duplicates this run's product rows.
                 with self.store.db:
-                    self.store.db.execute("INSERT INTO visited_pages VALUES (?,?)", (run_id, cursor))
+                    self.store.db.execute(
+                        "INSERT INTO visited_pages VALUES (?,?)", (run_id, cursor)
+                    )
                     for row in rows:
-                        self.store.db.execute("INSERT OR REPLACE INTO snapshots VALUES (?,?,?,?,?)", (run_id, row["product_id"], cursor, captured_at, json.dumps(row)))
+                        self.store.db.execute(
+                            "INSERT OR REPLACE INTO snapshots VALUES (?,?,?,?,?)",
+                            (run_id, row["product_id"], cursor, captured_at, json.dumps(row)),
+                        )
                     pages += 1
-                    self.store.db.execute("UPDATE runs SET cursor=?,pages=?,errors=?,status=? WHERE id=?", (next_url, pages, json.dumps(errors), "partial" if next_url else "completed", run_id))
+                    self.store.db.execute(
+                        "UPDATE runs SET cursor=?,pages=?,errors=?,status=? WHERE id=?",
+                        (
+                            next_url,
+                            pages,
+                            json.dumps(errors),
+                            "partial" if next_url else "completed",
+                            run_id,
+                        ),
+                    )
                 visited.add(cursor)
                 cursor = next_url
         except Exception as exc:
             errors.append({"url": cursor, "message": str(exc), "type": type(exc).__name__})
             with self.store.db:
-                self.store.db.execute("UPDATE runs SET status='failed',errors=? WHERE id=?", (json.dumps(errors), run_id))
+                self.store.db.execute(
+                    "UPDATE runs SET status='failed',errors=? WHERE id=?",
+                    (json.dumps(errors), run_id),
+                )
             raise
-        return {"run_id": run_id, "status": "partial" if cursor else "completed", "pages": pages,
-                "rows": len(self.store.rows(run_id)), "errors": errors,
-                "network_requests": self.network_requests, "cache_hits": self.cache_hits}
+        return {
+            "run_id": run_id,
+            "status": "partial" if cursor else "completed",
+            "pages": pages,
+            "rows": len(self.store.rows(run_id)),
+            "errors": errors,
+            "network_requests": self.network_requests,
+            "cache_hits": self.cache_hits,
+        }
 
 
 def export_rows(rows: list[dict], directory: str | Path) -> None:
     path = Path(directory)
     path.mkdir(parents=True, exist_ok=True)
-    (path / "catalog.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    (path / "catalog.json").write_text(
+        json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     with (path / "catalog.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["source", "product_id", "product_name", "price", "currency", "source_url", "captured_at"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "source",
+                "product_id",
+                "product_name",
+                "price",
+                "currency",
+                "source_url",
+                "captured_at",
+            ],
+        )
         writer.writeheader()
         writer.writerows(rows)

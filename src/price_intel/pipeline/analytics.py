@@ -17,8 +17,10 @@ def detect_alerts(df: pd.DataFrame, pct_threshold: float = 5.0) -> list[dict]:
         return []
 
     work = df.sort_values(["product_id", "captured_at"]).copy()
-    work["prev_price"] = work.groupby("product_id")["price"].shift(1)
+    group_columns = ["product_id"] + (["currency"] if "currency" in work else [])
+    work["prev_price"] = work.groupby(group_columns)["price"].shift(1)
     work = work.dropna(subset=["prev_price"])
+    work = work[work["prev_price"] != 0]
     if work.empty:
         return []
 
@@ -33,6 +35,7 @@ def detect_alerts(df: pd.DataFrame, pct_threshold: float = 5.0) -> list[dict]:
             "prev_price": float(r["prev_price"]),
             "pct_change": round(float(r["pct_change"]), 2),
             "captured_at": r["captured_at"],
+            **({"currency": r["currency"]} if "currency" in work.columns else {}),
         }
         for _, r in hits.iterrows()
     ]
