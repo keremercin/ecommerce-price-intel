@@ -1,4 +1,5 @@
 import json
+import runpy
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -101,13 +102,12 @@ def test_api_store_uses_the_db_url_setting(tmp_path, monkeypatch):
 
 
 def test_env_example_api_and_cli_share_the_catalog_database(tmp_path, monkeypatch):
-    from pathlib import Path
-
     from price_intel.config import Settings, database_path
-    from scripts.collect_catalog import DEFAULT_DATABASE
 
     monkeypatch.delenv("DB_URL", raising=False)
     example_settings = Settings(_env_file=Path(__file__).resolve().parents[1] / ".env.example")
     api_path = database_path(example_settings.db_url).as_posix().removeprefix("./")
+    collector_script = Path(__file__).resolve().parents[1] / "scripts" / "collect_catalog.py"
+    default_database = runpy.run_path(str(collector_script))["DEFAULT_DATABASE"]
 
-    assert api_path == DEFAULT_DATABASE == "data/catalog.db"
+    assert api_path == default_database == "data/catalog.db"
