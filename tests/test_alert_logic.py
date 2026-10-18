@@ -1,4 +1,5 @@
 import pandas as pd
+
 from price_intel.pipeline.analytics import detect_alerts
 
 

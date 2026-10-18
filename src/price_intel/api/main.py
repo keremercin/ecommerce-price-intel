@@ -3,6 +3,7 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
 from price_intel.catalog import CatalogStore
 from price_intel.collectors.sample_collector import collect_sample_products
 from price_intel.config import database_path, settings

@@ -2,6 +2,7 @@ import json
 
 import httpx
 import pytest
+
 from price_intel.catalog import (
     SOURCE,
     CatalogCrawler,
